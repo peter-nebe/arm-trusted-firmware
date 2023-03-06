@@ -1,0 +1,21 @@
+#!/bin/sh -v
+
+RPI4_DIR=$(pwd)
+ATF_DIR=${RPI4_DIR}/../../..
+# adjust path
+OPTEEOS_DIR=${ATF_DIR}/../optee/optee_os-rpi4
+
+cd ${ATF_DIR}
+./mk-rpi4
+
+cd ${OPTEEOS_DIR}
+./mk-rpi4
+
+cd ${RPI4_DIR}
+mkdir -p build
+cd build
+cp ${ATF_DIR}/build/rpi4/debug/bl31.bin ./bl31-pad.tmp
+truncate --size=128K bl31-pad.tmp
+cat bl31-pad.tmp ${OPTEEOS_DIR}/out/arm-plat-rpi4/core/tee-pager_v2.bin > bl31-optee.bin
+
+cd ..
