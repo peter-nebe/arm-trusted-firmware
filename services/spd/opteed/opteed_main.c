@@ -143,8 +143,8 @@ static int32_t opteed_setup(void)
 	// arg2 is dt_addr
 //	opteed_mem_limit = optee_ep_info->args.arg2;
 //	dt_addr = optee_ep_info->args.arg3;
-  opteed_mem_limit = 0;
-  dt_addr = optee_ep_info->args.arg2;
+	opteed_mem_limit = 0;
+	dt_addr = optee_ep_info->args.arg2;
 
 	opteed_init_optee_ep_state(optee_ep_info,
 				opteed_rw,
