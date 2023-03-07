@@ -1,0 +1,25 @@
+#!/bin/sh -v
+
+RPI4_DIR=$(pwd)
+# adjust path
+OPTEEOS_DIR=${RPI4_DIR}/../../../../optee/optee_os-rpi4
+
+cd ../../..
+make \
+  CROSS_COMPILE=/opt/toolchain/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu- \
+  PLAT=rpi4 \
+  SPD=opteed \
+  DEBUG=1 \
+  LOG_LEVEL=50
+
+cd ${OPTEEOS_DIR}/core/arch/arm/plat-rpi4
+./mk-rpi4
+
+cd ${RPI4_DIR}
+mkdir -p build
+cd build
+cp ../../../../build/rpi4/debug/bl31.bin ./bl31-pad.tmp
+truncate --size=128K bl31-pad.tmp
+cat bl31-pad.tmp ${OPTEEOS_DIR}/out/arm-plat-rpi4/core/tee-pager_v2.bin > bl31-optee.bin
+
+cd ..
