@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2022, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2023, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,8 +7,13 @@
 #ifndef COT_DEF_H
 #define COT_DEF_H
 
+/*
+ * Guard here with availability of mbedtls config since PLAT=lx2162aqds
+ * uses custom tbbr from 'drivers/nxp/auth/tbbr/tbbr_cot.c'  and also may
+ * build without mbedtls folder only with TRUSTED_BOOT enabled.
+ */
 #ifdef MBEDTLS_CONFIG_FILE
-#include MBEDTLS_CONFIG_FILE
+#include <mbedtls/version.h>
 #endif
 
 /* TBBR CoT definitions */
