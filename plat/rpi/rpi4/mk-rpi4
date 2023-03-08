@@ -9,8 +9,7 @@ make \
   CROSS_COMPILE=/opt/toolchain/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu- \
   PLAT=rpi4 \
   SPD=opteed \
-  DEBUG=1 \
-  LOG_LEVEL=50
+  DEBUG=1
 
 cd ${OPTEEOS_DIR}/core/arch/arm/plat-rpi4
 ./mk-rpi4
