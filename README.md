@@ -1,4 +1,4 @@
-The following log outputs show the initialization on the Raspberry Pi 4. You can see how control passes from the ARM Trusted Firmware to the OPTEE-OS and back again.
+The following log outputs show the initialization on the Raspberry Pi 4. You can see how control passes from the ARM Trusted Firmware to the OP-TEE OS and back again.
 ```
 VERBOSE: rpi4: copy optee-os image (512000 bytes) from 0x20000 to 0x10100000
 VERBOSE: rpi4: optee-os entry: 0x10100000
