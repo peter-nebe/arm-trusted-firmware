@@ -138,6 +138,13 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	/* Initialize the console to provide early debug support. */
 	rpi3_console_init();
 
+	/*
+	 * Copy the OP-TEE OS image to the entry address.
+	 * Unfortunately, this is still a quick and dirty hack that bypasses any FIP.
+	 * Restrictions:
+	 * - The OP-TEE OS image is mandatory and must be attached to the bl31 (directly, not as FIP).
+	 * - It must not be larger than 500 KiB.
+	 */
 	const size_t KiB = 1024;
 	const size_t opteeOsSize = 500 * KiB;
 	const void *const opteeOsLoadAdr = (const void*)(128 * KiB);
@@ -145,12 +152,14 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	VERBOSE("rpi4: copy optee-os image (%lu bytes) from %p to %p\n", opteeOsSize, opteeOsLoadAdr, opteeOsEntry);
 	memcpy(opteeOsEntry, opteeOsLoadAdr, opteeOsSize);
 
+	/* Initialize the OP-TEE OS image info. */
 	bl32_image_ep_info.pc = (uintptr_t)opteeOsEntry;
 	bl32_image_ep_info.args.arg2 = rpi4_get_dtb_address();
 	SET_SECURITY_STATE(bl32_image_ep_info.h.attr, SECURE);
 	VERBOSE("rpi4: optee-os entry: %p\n", (void*)bl32_image_ep_info.pc);
 	VERBOSE("rpi4: dtb: %p\n", (void*)bl32_image_ep_info.args.arg2);
 
+	/* Initialize the Linux kernel image info. */
 	bl33_image_ep_info.pc = plat_get_ns_image_entrypoint();
 	bl33_image_ep_info.spsr = rpi3_get_spsr_for_bl33_entry();
 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);

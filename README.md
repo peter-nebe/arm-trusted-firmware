@@ -190,4 +190,10 @@ BACKTRACE: END: assert
 ```
 A Linux kernel has not yet been loaded on purpose. Therefore, the assertion at the end fails.
 
+The solution in this branch is temporary and has the following **limitations**:
+- It only works on the Raspberry Pi 4.
+- The OP-TEE OS image is mandatory and must not be larger than 500 KiB.
+
+This solution is published **without any guarantee**. Use it at your own risk.
+
 More information at https://github.com/peter-nebe/optee_os
