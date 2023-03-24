@@ -2,7 +2,7 @@
 
 RPI4_DIR=$(pwd)
 # adjust path
-OPTEEOS_DIR=${RPI4_DIR}/../../../../optee/optee_os-rpi4
+OPTEEOS_DIR=${RPI4_DIR}/../../../../op-tee/optee_os-rpi4
 
 cd ../../..
 make \
