@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016-2022, Arm Limited. All rights reserved.
+# Copyright (c) 2016-2023, Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -30,13 +30,13 @@ ARM_ARCH_MINOR			:= 0
 BASE_COMMIT			:= origin/master
 
 # Execute BL2 at EL3
-BL2_AT_EL3			:= 0
+RESET_TO_BL2			:= 0
 
 # Only use SP packages if SP layout JSON is defined
 BL2_ENABLE_SP_LOAD		:= 0
 
 # BL2 image is stored in XIP memory, for now, this option is only supported
-# when BL2_AT_EL3 is 1.
+# when RESET_TO_BL2 is 1.
 BL2_IN_XIP_MEM			:= 0
 
 # Do dcache invalidate upon BL2 entry at EL3
@@ -175,6 +175,9 @@ ENABLE_FEAT_VHE 		:= 0
 
 # Flag to enable delayed trapping of WFE instruction (FEAT_TWED)
 ENABLE_FEAT_TWED		:= 0
+
+# Flag to enable access to TCR2 (FEAT_TCR2)
+ENABLE_FEAT_TCR2		:= 0
 
 # By default BL31 encryption disabled
 ENCRYPT_BL31			:= 0
@@ -352,11 +355,11 @@ V				:= 0
 WARMBOOT_ENABLE_DCACHE_EARLY	:= 0
 
 # Build option to enable/disable the Statistical Profiling Extensions
-ENABLE_SPE_FOR_LOWER_ELS	:= 1
+ENABLE_SPE_FOR_NS		:= 2
 
 # SPE is only supported on AArch64 so disable it on AArch32.
 ifeq (${ARCH},aarch32)
-	override ENABLE_SPE_FOR_LOWER_ELS := 0
+	override ENABLE_SPE_FOR_NS := 0
 endif
 
 # Include Memory Tagging Extension registers in cpu context. This must be set

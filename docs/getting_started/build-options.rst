@@ -52,8 +52,14 @@ Common build options
 -  ``BL2U``: This is an optional build option which specifies the path to
    BL2U image. In this case, the BL2U in TF-A will not be built.
 
--  ``BL2_AT_EL3``: This is an optional build option that enables the use of
-   BL2 at EL3 execution level.
+-  ``RESET_TO_BL2``: Boolean option to enable BL2 entrypoint as the CPU reset
+   vector instead of the BL1 entrypoint. It can take the value 0 (CPU reset to BL1
+   entrypoint) or 1 (CPU reset to BL2 entrypoint).
+   The default value is 0.
+
+-  ``BL2_RUNS_AT_EL3``: This is an implicit flag to denote that BL2 runs at EL3.
+   While it is explicitly set to 1 when RESET_TO_BL2 is set to 1 it can also be
+   true in a 4-world system where RESET_TO_BL2 is 0.
 
 -  ``BL2_ENABLE_SP_LOAD``: Boolean option to enable loading SP packages from the
    FIP. Automatically enabled if ``SP_LAYOUT_FILE`` is provided.
@@ -61,8 +67,8 @@ Common build options
 -  ``BL2_IN_XIP_MEM``: In some use-cases BL2 will be stored in eXecute In Place
    (XIP) memory, like BL1. In these use-cases, it is necessary to initialize
    the RW sections in RAM, while leaving the RO sections in place. This option
-   enable this use-case. For now, this option is only supported when BL2_AT_EL3
-   is set to '1'.
+   enable this use-case. For now, this option is only supported
+   when RESET_TO_BL2 is set to '1'.
 
 -  ``BL31``: This is an optional build option which specifies the path to
    BL31 image for the ``fip`` target. In this case, the BL31 in TF-A will not
@@ -348,6 +354,13 @@ Common build options
    values 0 to 2, to align  with the ``FEATURE_DETECTION`` mechanism.
    Default value is ``0``.
 
+-  ``ENABLE_FEAT_TCR2``: Numeric value to set the bit SCR_EL3.ENTCR2 in EL3 to
+   allow access to TCR2_EL2 (extended translation control) from EL2 as
+   well as adding TCR2_EL2 to the EL2 context save/restore operations. Its a
+   mandatory architectural feature and is enabled from v8.9 and upwards. This
+   flag can take the values 0 to 2, to align  with the ``FEATURE_DETECTION``
+   mechanism. Default value is ``0``.
+
 -  ``ENABLE_LTO``: Boolean option to enable Link Time Optimization (LTO)
    support in GCC for TF-A. This option is currently only supported for
    AArch64. Default is 0.
@@ -377,8 +390,8 @@ Common build options
 
 -  ``ENABLE_PIE``: Boolean option to enable Position Independent Executable(PIE)
    support within generic code in TF-A. This option is currently only supported
-   in BL2_AT_EL3, BL31, and BL32 (TSP) for AARCH64 binaries, and in BL32
-   (SP_min) for AARCH32. Default is 0.
+   in BL2, BL31, and BL32 (TSP) for AARCH64 binaries, and
+   in BL32 (SP_min) for AARCH32. Default is 0.
 
 -  ``ENABLE_PMF``: Boolean option to enable support for optional Performance
    Measurement Framework(PMF). Default is 0.
@@ -415,10 +428,11 @@ Common build options
    handle context switching for SME, SVE, and FPU/SIMD registers to ensure that
    no data is leaked to non-secure world. This is experimental. Default is 0.
 
--  ``ENABLE_SPE_FOR_LOWER_ELS`` : Boolean option to enable Statistical Profiling
+-  ``ENABLE_SPE_FOR_NS`` : Numeric value to enable Statistical Profiling
    extensions. This is an optional architectural feature for AArch64.
-   The default is 1 but is automatically disabled when the target architecture
-   is AArch32.
+   This flag can take the values 0 to 2, to align with the ``FEATURE_DETECTION``
+   mechanism. The default is 2 but is automatically disabled when the target
+   architecture is AArch32.
 
 -  ``ENABLE_SVE_FOR_NS``: Boolean option to enable Scalable Vector Extension
    (SVE) for the Non-secure world only. SVE is an optional architectural feature
@@ -1199,7 +1213,7 @@ Firmware update options
 
 --------------
 
-*Copyright (c) 2019-2022, Arm Limited. All rights reserved.*
+*Copyright (c) 2019-2023, Arm Limited. All rights reserved.*
 
 .. _DEN0115: https://developer.arm.com/docs/den0115/latest
 .. _PSA FW update specification: https://developer.arm.com/documentation/den0118/a/

@@ -111,6 +111,15 @@ const mmap_region_t plat_arm_mmap[] = {
 	 * Required to load HW_CONFIG, SPMC and SPs to trusted DRAM.
 	 */
 	ARM_MAP_TRUSTED_DRAM,
+
+	/*
+	 * Required to load Event Log in TZC secured memory
+	 */
+#if MEASURED_BOOT && (defined(SPD_tspd) || defined(SPD_opteed) || \
+defined(SPD_spmd))
+	ARM_MAP_EVENT_LOG_DRAM1,
+#endif /* MEASURED_BOOT && (SPD_tspd || SPD_opteed || SPD_spmd) */
+
 #if ENABLE_RME
 	ARM_MAP_RMM_DRAM,
 	ARM_MAP_GPT_L1_DRAM,
@@ -123,13 +132,13 @@ const mmap_region_t plat_arm_mmap[] = {
 	MAP_DEVICE2,
 #endif /* TRUSTED_BOARD_BOOT */
 
-#if CRYPTO_SUPPORT && !BL2_AT_EL3
+#if CRYPTO_SUPPORT && !RESET_TO_BL2
 	/*
 	 * To access shared the Mbed TLS heap while booting the
 	 * system with Crypto support
 	 */
 	ARM_MAP_BL1_RW,
-#endif /* CRYPTO_SUPPORT && !BL2_AT_EL3 */
+#endif /* CRYPTO_SUPPORT && !RESET_TO_BL2 */
 #if SPM_MM || SPMC_AT_EL3
 	ARM_SP_IMAGE_MMAP,
 #endif

@@ -18,6 +18,17 @@ $(eval $(call add_define,ARMV7_SUPPORTS_GENERIC_TIMER))
 $(eval $(call add_define,ARMV7_SUPPORTS_VFP))
 # Qemu expects a BL32 boot stage.
 NEED_BL32		:=	yes
+else
+CTX_INCLUDE_AARCH32_REGS := 0
+ifeq (${CTX_INCLUDE_AARCH32_REGS}, 1)
+$(error "This is an AArch64-only port; CTX_INCLUDE_AARCH32_REGS must be disabled")
+endif
+
+# Treating this as a memory-constrained port for now
+USE_COHERENT_MEM	:=	0
+
+# This can be overridden depending on CPU(s) used in the QEMU image
+HW_ASSISTED_COHERENCY	:=	1
 endif # ARMv7
 
 ifeq (${SPD},opteed)
@@ -46,6 +57,17 @@ PLAT_INCLUDES		:=	-Iinclude/plat/arm/common/		\
 
 ifeq (${ARM_ARCH_MAJOR},8)
 PLAT_INCLUDES		+=	-Iinclude/plat/arm/common/${ARCH}
+
+QEMU_CPU_LIBS		:=	lib/cpus/aarch64/aem_generic.S		\
+				lib/cpus/aarch64/cortex_a53.S		\
+				lib/cpus/aarch64/cortex_a57.S		\
+				lib/cpus/aarch64/cortex_a72.S		\
+				lib/cpus/aarch64/cortex_a76.S		\
+				lib/cpus/aarch64/neoverse_n_common.S	\
+				lib/cpus/aarch64/neoverse_n1.S		\
+				lib/cpus/aarch64/qemu_max.S
+else
+QEMU_CPU_LIBS		:=	lib/cpus/${ARCH}/cortex_a15.S
 endif
 
 PLAT_BL_COMMON_SOURCES	:=	${PLAT_QEMU_COMMON_PATH}/qemu_common.c			\
@@ -135,14 +157,15 @@ BL1_SOURCES		+=	drivers/io/io_semihosting.c		\
 				lib/semihosting/${ARCH}/semihosting_call.S \
 				${PLAT_QEMU_COMMON_PATH}/qemu_io_storage.c		\
 				${PLAT_QEMU_COMMON_PATH}/${ARCH}/plat_helpers.S	\
-				${PLAT_QEMU_COMMON_PATH}/qemu_bl1_setup.c
+				${PLAT_QEMU_COMMON_PATH}/qemu_bl1_setup.c	\
+				${QEMU_CPU_LIBS}
 
 ifeq (${ARM_ARCH_MAJOR},8)
-BL1_SOURCES		+=	lib/cpus/aarch64/aem_generic.S		\
-				lib/cpus/aarch64/cortex_a53.S		\
-				lib/cpus/aarch64/cortex_a57.S		\
-				lib/cpus/aarch64/cortex_a72.S		\
-				lib/cpus/aarch64/qemu_max.S		\
+BL1_SOURCES		+=	lib/cpus/${ARCH}/aem_generic.S		\
+				lib/cpus/${ARCH}/cortex_a53.S		\
+				lib/cpus/${ARCH}/cortex_a57.S		\
+				lib/cpus/${ARCH}/cortex_a72.S		\
+				lib/cpus/${ARCH}/qemu_max.S		\
 
 else
 BL1_SOURCES		+=	lib/cpus/${ARCH}/cortex_a15.S
@@ -195,11 +218,7 @@ $(error "Incorrect GIC driver chosen for QEMU platform")
 endif
 
 ifeq (${ARM_ARCH_MAJOR},8)
-BL31_SOURCES		+=	lib/cpus/aarch64/aem_generic.S		\
-				lib/cpus/aarch64/cortex_a53.S		\
-				lib/cpus/aarch64/cortex_a57.S		\
-				lib/cpus/aarch64/cortex_a72.S		\
-				lib/cpus/aarch64/qemu_max.S		\
+BL31_SOURCES		+=	${QEMU_CPU_LIBS}			\
 				lib/semihosting/semihosting.c		\
 				lib/semihosting/${ARCH}/semihosting_call.S \
 				plat/common/plat_psci_common.c		\
@@ -286,4 +305,18 @@ $(eval $(call add_define,ARM_PRELOADED_DTB_BASE))
 ifneq (${ARCH},aarch32)
 	ENABLE_SVE_FOR_NS	:= 1
 	ENABLE_SME_FOR_NS	:= 1
+endif
+
+qemu_fw.bios: bl1 fip
+	$(ECHO) "  DD      $@"
+	$(Q)cp ${BUILD_PLAT}/bl1.bin ${BUILD_PLAT}/$@
+	$(Q)dd if=${BUILD_PLAT}/fip.bin of=${BUILD_PLAT}/$@ bs=64k seek=4 status=none
+
+qemu_fw.rom: qemu_fw.bios
+	$(ECHO) "  DD      $@"
+	$(Q)cp ${BUILD_PLAT}/$^ ${BUILD_PLAT}/$@
+	$(Q)dd if=/dev/zero of=${BUILD_PLAT}/$@ bs=1M seek=64 count=0 status=none
+
+ifneq (${BL33},)
+all: qemu_fw.bios qemu_fw.rom
 endif

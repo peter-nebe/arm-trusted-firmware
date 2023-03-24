@@ -348,6 +348,13 @@ static void setup_context_common(cpu_context_t *ctx, const entry_point_info_t *e
 #endif
 
 	/*
+	 * SCR_EL3.TCR2EN: Enable access to TCR2_ELx for AArch64 if present.
+	 */
+	if (is_feat_tcr2_supported() && (GET_RW(ep->spsr) == MODE_RW_64)) {
+		scr_el3 |= SCR_TCR2EN_BIT;
+	}
+
+	/*
 	 * CPTR_EL3 was initialized out of reset, copy that value to the
 	 * context register.
 	 */
@@ -475,9 +482,9 @@ void cm_setup_context(cpu_context_t *ctx, const entry_point_info_t *ep)
 static void manage_extensions_nonsecure(bool el2_unused, cpu_context_t *ctx)
 {
 #if IMAGE_BL31
-#if ENABLE_SPE_FOR_LOWER_ELS
-	spe_enable(el2_unused);
-#endif
+	if (is_feat_spe_supported()) {
+		spe_enable(el2_unused);
+	}
 
 #if ENABLE_AMU
 	amu_enable(el2_unused, ctx);
@@ -491,9 +498,9 @@ static void manage_extensions_nonsecure(bool el2_unused, cpu_context_t *ctx)
 	sve_enable(ctx);
 #endif
 
-#if ENABLE_MPAM_FOR_LOWER_ELS
-	mpam_enable(el2_unused);
-#endif
+	if (is_feat_mpam_supported()) {
+		mpam_enable(el2_unused);
+	}
 
 	if (is_feat_trbe_supported()) {
 		trbe_enable();
@@ -827,6 +834,96 @@ static void el2_sysregs_context_restore_fgt(el2_sysregs_t *ctx)
 	write_hfgwtr_el2(read_ctx_reg(ctx, CTX_HFGWTR_EL2));
 }
 
+static void el2_sysregs_context_save_mpam(el2_sysregs_t *ctx)
+{
+	u_register_t mpam_idr = read_mpamidr_el1();
+
+	write_ctx_reg(ctx, CTX_MPAM2_EL2, read_mpam2_el2());
+
+	/*
+	 * The context registers that we intend to save would be part of the
+	 * PE's system register frame only if MPAMIDR_EL1.HAS_HCR == 1.
+	 */
+	if ((mpam_idr & MPAMIDR_HAS_HCR_BIT) == 0U) {
+		return;
+	}
+
+	/*
+	 * MPAMHCR_EL2, MPAMVPMV_EL2 and MPAMVPM0_EL2 are always present if
+	 * MPAMIDR_HAS_HCR_BIT == 1.
+	 */
+	write_ctx_reg(ctx, CTX_MPAMHCR_EL2, read_mpamhcr_el2());
+	write_ctx_reg(ctx, CTX_MPAMVPM0_EL2, read_mpamvpm0_el2());
+	write_ctx_reg(ctx, CTX_MPAMVPMV_EL2, read_mpamvpmv_el2());
+
+	/*
+	 * The number of MPAMVPM registers is implementation defined, their
+	 * number is stored in the MPAMIDR_EL1 register.
+	 */
+	switch ((mpam_idr >> MPAMIDR_EL1_VPMR_MAX_SHIFT) & MPAMIDR_EL1_VPMR_MAX_MASK) {
+	case 7:
+		write_ctx_reg(ctx, CTX_MPAMVPM7_EL2, read_mpamvpm7_el2());
+		__fallthrough;
+	case 6:
+		write_ctx_reg(ctx, CTX_MPAMVPM6_EL2, read_mpamvpm6_el2());
+		__fallthrough;
+	case 5:
+		write_ctx_reg(ctx, CTX_MPAMVPM5_EL2, read_mpamvpm5_el2());
+		__fallthrough;
+	case 4:
+		write_ctx_reg(ctx, CTX_MPAMVPM4_EL2, read_mpamvpm4_el2());
+		__fallthrough;
+	case 3:
+		write_ctx_reg(ctx, CTX_MPAMVPM3_EL2, read_mpamvpm3_el2());
+		__fallthrough;
+	case 2:
+		write_ctx_reg(ctx, CTX_MPAMVPM2_EL2, read_mpamvpm2_el2());
+		__fallthrough;
+	case 1:
+		write_ctx_reg(ctx, CTX_MPAMVPM1_EL2, read_mpamvpm1_el2());
+		break;
+	}
+}
+
+static void el2_sysregs_context_restore_mpam(el2_sysregs_t *ctx)
+{
+	u_register_t mpam_idr = read_mpamidr_el1();
+
+	write_mpam2_el2(read_ctx_reg(ctx, CTX_MPAM2_EL2));
+
+	if ((mpam_idr & MPAMIDR_HAS_HCR_BIT) == 0U) {
+		return;
+	}
+
+	write_mpamhcr_el2(read_ctx_reg(ctx, CTX_MPAMHCR_EL2));
+	write_mpamvpm0_el2(read_ctx_reg(ctx, CTX_MPAMVPM0_EL2));
+	write_mpamvpmv_el2(read_ctx_reg(ctx, CTX_MPAMVPMV_EL2));
+
+	switch ((mpam_idr >> MPAMIDR_EL1_VPMR_MAX_SHIFT) & MPAMIDR_EL1_VPMR_MAX_MASK) {
+	case 7:
+		write_mpamvpm7_el2(read_ctx_reg(ctx, CTX_MPAMVPM7_EL2));
+		__fallthrough;
+	case 6:
+		write_mpamvpm6_el2(read_ctx_reg(ctx, CTX_MPAMVPM6_EL2));
+		__fallthrough;
+	case 5:
+		write_mpamvpm5_el2(read_ctx_reg(ctx, CTX_MPAMVPM5_EL2));
+		__fallthrough;
+	case 4:
+		write_mpamvpm4_el2(read_ctx_reg(ctx, CTX_MPAMVPM4_EL2));
+		__fallthrough;
+	case 3:
+		write_mpamvpm3_el2(read_ctx_reg(ctx, CTX_MPAMVPM3_EL2));
+		__fallthrough;
+	case 2:
+		write_mpamvpm2_el2(read_ctx_reg(ctx, CTX_MPAMVPM2_EL2));
+		__fallthrough;
+	case 1:
+		write_mpamvpm1_el2(read_ctx_reg(ctx, CTX_MPAMVPM1_EL2));
+		break;
+	}
+}
+
 /*******************************************************************************
  * Save EL2 sysreg context
  ******************************************************************************/
@@ -849,15 +946,12 @@ void cm_el2_sysregs_context_save(uint32_t security_state)
 		el2_sysregs_ctx = get_el2_sysregs_ctx(ctx);
 
 		el2_sysregs_context_save_common(el2_sysregs_ctx);
-#if ENABLE_SPE_FOR_LOWER_ELS
-		el2_sysregs_context_save_spe(el2_sysregs_ctx);
-#endif
 #if CTX_INCLUDE_MTE_REGS
 		el2_sysregs_context_save_mte(el2_sysregs_ctx);
 #endif
-#if ENABLE_MPAM_FOR_LOWER_ELS
-		el2_sysregs_context_save_mpam(el2_sysregs_ctx);
-#endif
+		if (is_feat_mpam_supported()) {
+			el2_sysregs_context_save_mpam(el2_sysregs_ctx);
+		}
 
 		if (is_feat_fgt_supported()) {
 			el2_sysregs_context_save_fgt(el2_sysregs_ctx);
@@ -866,9 +960,12 @@ void cm_el2_sysregs_context_save(uint32_t security_state)
 #if ENABLE_FEAT_ECV
 		el2_sysregs_context_save_ecv(el2_sysregs_ctx);
 #endif
-#if ENABLE_FEAT_VHE
-		el2_sysregs_context_save_vhe(el2_sysregs_ctx);
-#endif
+		if (is_feat_vhe_supported()) {
+			write_ctx_reg(el2_sysregs_ctx, CTX_CONTEXTIDR_EL2,
+				      read_contextidr_el2());
+			write_ctx_reg(el2_sysregs_ctx, CTX_TTBR1_EL2,
+				      read_ttbr1_el2());
+		}
 #if RAS_EXTENSION
 		el2_sysregs_context_save_ras(el2_sysregs_ctx);
 #endif
@@ -883,6 +980,9 @@ void cm_el2_sysregs_context_save(uint32_t security_state)
 #endif
 		if (is_feat_hcx_supported()) {
 			write_ctx_reg(el2_sysregs_ctx, CTX_HCRX_EL2, read_hcrx_el2());
+		}
+		if (is_feat_tcr2_supported()) {
+			write_ctx_reg(el2_sysregs_ctx, CTX_TCR2_EL2, read_tcr2_el2());
 		}
 	}
 }
@@ -909,15 +1009,12 @@ void cm_el2_sysregs_context_restore(uint32_t security_state)
 		el2_sysregs_ctx = get_el2_sysregs_ctx(ctx);
 
 		el2_sysregs_context_restore_common(el2_sysregs_ctx);
-#if ENABLE_SPE_FOR_LOWER_ELS
-		el2_sysregs_context_restore_spe(el2_sysregs_ctx);
-#endif
 #if CTX_INCLUDE_MTE_REGS
 		el2_sysregs_context_restore_mte(el2_sysregs_ctx);
 #endif
-#if ENABLE_MPAM_FOR_LOWER_ELS
-		el2_sysregs_context_restore_mpam(el2_sysregs_ctx);
-#endif
+		if (is_feat_mpam_supported()) {
+			el2_sysregs_context_restore_mpam(el2_sysregs_ctx);
+		}
 
 		if (is_feat_fgt_supported()) {
 			el2_sysregs_context_restore_fgt(el2_sysregs_ctx);
@@ -926,9 +1023,10 @@ void cm_el2_sysregs_context_restore(uint32_t security_state)
 #if ENABLE_FEAT_ECV
 		el2_sysregs_context_restore_ecv(el2_sysregs_ctx);
 #endif
-#if ENABLE_FEAT_VHE
-		el2_sysregs_context_restore_vhe(el2_sysregs_ctx);
-#endif
+		if (is_feat_vhe_supported()) {
+			write_contextidr_el2(read_ctx_reg(el2_sysregs_ctx, CTX_CONTEXTIDR_EL2));
+			write_ttbr1_el2(read_ctx_reg(el2_sysregs_ctx, CTX_TTBR1_EL2));
+		}
 #if RAS_EXTENSION
 		el2_sysregs_context_restore_ras(el2_sysregs_ctx);
 #endif
@@ -943,6 +1041,9 @@ void cm_el2_sysregs_context_restore(uint32_t security_state)
 #endif
 		if (is_feat_hcx_supported()) {
 			write_hcrx_el2(read_ctx_reg(el2_sysregs_ctx, CTX_HCRX_EL2));
+		}
+		if (is_feat_tcr2_supported()) {
+			write_tcr2_el2(read_ctx_reg(el2_sysregs_ctx, CTX_TCR2_EL2));
 		}
 	}
 }

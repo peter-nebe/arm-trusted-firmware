@@ -517,6 +517,13 @@ BL_COMMON_SOURCES	+=	common/bl_common.c			\
 				plat/common/${ARCH}/platform_helpers.S	\
 				${COMPILER_RT_SRCS}
 
+# Pointer Authentication sources
+ifeq (${ENABLE_PAUTH}, 1)
+# arm/common/aarch64/arm_pauth.c contains a sample platform hook to complete the
+# Pauth support. As it's not secure, it must be reimplemented for real platforms
+BL_COMMON_SOURCES	+=	lib/extensions/pauth/pauth_helpers.S
+endif
+
 ifeq ($(notdir $(CC)),armclang)
 BL_COMMON_SOURCES	+=	lib/${ARCH}/armclang_printf.S
 endif
@@ -646,6 +653,22 @@ endif
 
 include ${PLAT_MAKEFILE_FULL}
 
+# This internal flag is common option which is set to 1 for scenarios
+# when the BL2 is running in EL3 level. This occurs in two scenarios -
+# 4 world system running BL2 at EL3 and two world system without BL1 running
+# BL2 in EL3
+
+ifeq (${RESET_TO_BL2},1)
+	BL2_RUNS_AT_EL3	:=	1
+    ifeq (${ENABLE_RME},1)
+        $(error RESET_TO_BL2=1 and ENABLE_RME=1 configuration is not supported at the moment.)
+    endif
+else ifeq (${ENABLE_RME},1)
+	BL2_RUNS_AT_EL3	:=	1
+else
+	BL2_RUNS_AT_EL3	:=	0
+endif
+
 $(eval $(call MAKE_PREREQ_DIR,${BUILD_PLAT}))
 
 ifeq (${ARM_ARCH_MAJOR},7)
@@ -667,7 +690,7 @@ else
 endif
 
 ifeq ($(ENABLE_PIE),1)
-ifeq ($(BL2_AT_EL3),1)
+ifeq ($(RESET_TO_BL2),1)
 ifneq ($(BL2_IN_XIP_MEM),1)
 	BL2_CPPFLAGS	+=	-fpie
 	BL2_CFLAGS	+=	-fpie
@@ -685,7 +708,7 @@ endif
 
 ifeq (${ARCH},aarch64)
 BL1_CPPFLAGS += -DIMAGE_AT_EL3
-ifeq ($(BL2_AT_EL3),1)
+ifeq ($(RESET_TO_BL2),1)
 BL2_CPPFLAGS += -DIMAGE_AT_EL3
 else
 BL2_CPPFLAGS += -DIMAGE_AT_EL1
@@ -762,9 +785,9 @@ ifeq ($(HW_ASSISTED_COHERENCY)-$(USE_COHERENT_MEM),1-1)
 $(error USE_COHERENT_MEM cannot be enabled with HW_ASSISTED_COHERENCY)
 endif
 
-#For now, BL2_IN_XIP_MEM is only supported when BL2_AT_EL3 is 1.
-ifeq ($(BL2_AT_EL3)-$(BL2_IN_XIP_MEM),0-1)
-$(error "BL2_IN_XIP_MEM is only supported when BL2_AT_EL3 is enabled")
+#For now, BL2_IN_XIP_MEM is only supported when RESET_TO_BL2 is 1.
+ifeq ($(RESET_TO_BL2)-$(BL2_IN_XIP_MEM),0-1)
+$(error "BL2_IN_XIP_MEM is only supported when RESET_TO_BL2 is enabled")
 endif
 
 # For RAS_EXTENSION, require that EAs are handled in EL3 first
@@ -1080,7 +1103,6 @@ $(eval $(call assert_booleans,\
         ENABLE_RUNTIME_INSTRUMENTATION \
         ENABLE_SME_FOR_NS \
         ENABLE_SME_FOR_SWD \
-        ENABLE_SPE_FOR_LOWER_ELS \
         ENABLE_SVE_FOR_NS \
         ENABLE_SVE_FOR_SWD \
         ERROR_DEPRECATED \
@@ -1117,7 +1139,7 @@ $(eval $(call assert_booleans,\
         USE_ROMLIB \
         USE_TBBR_DEFS \
         WARMBOOT_ENABLE_DCACHE_EARLY \
-        BL2_AT_EL3 \
+        RESET_TO_BL2 \
         BL2_IN_XIP_MEM \
         BL2_INV_DCACHE \
         USE_SPINLOCK_CAS \
@@ -1162,9 +1184,11 @@ $(eval $(call assert_numerics,\
         ENABLE_FEAT_RNG_TRAP \
         ENABLE_FEAT_SB \
         ENABLE_FEAT_SEL2 \
+        ENABLE_FEAT_TCR2 \
         ENABLE_FEAT_VHE \
         ENABLE_MPAM_FOR_LOWER_ELS \
         ENABLE_RME \
+        ENABLE_SPE_FOR_NS \
         ENABLE_TRF_FOR_NS \
         FW_ENC_STATUS \
         NR_OF_FW_BANKS \
@@ -1220,7 +1244,7 @@ $(eval $(call add_defines,\
         ENABLE_RUNTIME_INSTRUMENTATION \
         ENABLE_SME_FOR_NS \
         ENABLE_SME_FOR_SWD \
-        ENABLE_SPE_FOR_LOWER_ELS \
+        ENABLE_SPE_FOR_NS \
         ENABLE_SVE_FOR_NS \
         ENABLE_SVE_FOR_SWD \
         ENCRYPT_BL31 \
@@ -1262,7 +1286,8 @@ $(eval $(call add_defines,\
         USE_ROMLIB \
         USE_TBBR_DEFS \
         WARMBOOT_ENABLE_DCACHE_EARLY \
-        BL2_AT_EL3 \
+        RESET_TO_BL2 \
+        BL2_RUNS_AT_EL3	\
         BL2_IN_XIP_MEM \
         BL2_INV_DCACHE \
         USE_SPINLOCK_CAS \
@@ -1293,6 +1318,7 @@ $(eval $(call add_defines,\
         ENABLE_FEAT_VHE \
         ENABLE_FEAT_CSV2_2 \
         ENABLE_FEAT_PAN \
+        ENABLE_FEAT_TCR2 \
         FEATURE_DETECTION \
         TWED_DELAY \
         ENABLE_FEAT_TWED \
@@ -1369,7 +1395,7 @@ $(eval $(call MAKE_BL,bl1))
 endif
 
 ifeq (${NEED_BL2},yes)
-ifeq (${BL2_AT_EL3}, 0)
+ifeq (${RESET_TO_BL2}, 0)
 FIP_BL2_ARGS := tb-fw
 endif
 
